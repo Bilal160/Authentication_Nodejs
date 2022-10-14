@@ -4,12 +4,26 @@ import jwt from 'jsonwebtoken'
 import dotenv from 'dotenv'
 import Verify_Email from '../../utils/ActivateEmail.js'
 dotenv.config()
+
+
 export const RegisterUser = async (req, res) => {
     if(!req.body.username || !req.body.email || !req.body.password) return res.status(404).json("Fill All Fields")
     const checkuser = await User.findOne({ email: req.body.email })
     if (checkuser) {
+        if(!checkuser.verified){
+            const data = {
+                id : checkuser._id
+            }
+            const token = jwt.sign(data,process.env.SECRET_TOKEN,{
+                expiresIn : '5m'
+            })        
+            const link = `${process.env.CLIENTURL}/user/activate/${checkuser._id}/${token}`
+            await Verify_Email(checkuser.email,"Activate Your Account",link)
+            res.status(200).json("Account Already Registered , Activation Email Sent to your email")
+        }
         return res.status(404).json("User Already Exist")
     }
+
     const salt = await bcrypt.genSalt(15)
     const hashpassword = await bcrypt.hash(req.body.password, salt)
     if (req.body.password !== req.body.confirmpassword) return res.status(401).json("Password not matched")
